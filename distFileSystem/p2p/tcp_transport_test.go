@@ -1,9 +1,8 @@
 package p2p
 
 import (
-	"testing"
-
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestTCPTrasport(t *testing.T) {

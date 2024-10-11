@@ -1,26 +1,28 @@
 package server
 
 import (
+	"bufio"
 	"fmt"
 	"net"
+	"strings"
 )
 
-
 type Client struct {
-  conn  net.Conn,
-  addr net.Addr,
+	conn   net.Conn
+	addr   net.Addr
+	server *Server
 }
 type Server struct {
 	addr      net.Addr
 	clientMap map[net.Addr]*Client
-	msgBus    chan string
+	msgBus    chan Command
 }
 
 func NewServer(addr net.Addr) *Server {
 	return &Server{
 		addr:      addr,
-		clientMap: make(map[net.Addr]net.Conn),
-		msgBus:    make(chan string, 1024),
+		clientMap: make(map[net.Addr]*Client),
+		msgBus:    make(chan Command, 1024),
 	}
 }
 
@@ -37,21 +39,52 @@ func (s *Server) start() {
 		conn, err := listner.Accept()
 		if err != nil {
 			fmt.Println("error while accepting conneciton", err)
-      continue
+			continue
 		}
-    client:=s.newClient(conn)
-    s.clientMap[conn.LocalAddr()]=client
-    go client.handleConnection(conn)
+		client := s.newClient(conn)
+		s.clientMap[conn.LocalAddr()] = client
+		go client.handleConnection()
 	}
 
 }
-func (s *Server) newClient(conn net.Conn) *Client{
-  return &Client{
-    conn: conn,
-    addr: conn.LocalAddr().String(),
-  }
+func (s *Server) newClient(conn net.Conn) *Client {
+	return &Client{
+		conn:   conn,
+		addr:   conn.LocalAddr(),
+		server: s,
+	}
 }
-func (s *Client) handleConnection() {
-//handler incoming request
-}
+func (s *Server) pushCommand(command Command) {
 
+	s.msgBus <- command
+}
+func (c *Client) handleConnection() {
+	// handler incoming request
+	for {
+		msg, err := bufio.NewReader(c.conn).ReadString('\n')
+		if err != nil {
+			fmt.Println("send message to client for err")
+			continue
+		}
+		if strings.HasPrefix(msg, "get") {
+			key, found := strings.CutPrefix(msg, "get")
+			if found {
+
+				cmd := Command{
+					id:     1,
+					client: c,
+					args:   []string{strings.TrimSpace(key)},
+				}
+				c.server.pushCommand(cmd)
+
+			}
+		}
+		if strings.HasPrefix(msg, "put") {
+
+		}
+		if strings.HasPrefix(msg, "exit") {
+
+		}
+	}
+
+}
